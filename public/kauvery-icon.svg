@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <defs>
+    <linearGradient id="kauvery-icon-top" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD000" />
+      <stop offset="50%" stop-color="#FF7A00" />
+      <stop offset="100%" stop-color="#E60067" />
+    </linearGradient>
+    <linearGradient id="kauvery-icon-inner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF2E93" />
+      <stop offset="100%" stop-color="#8A1562" />
+    </linearGradient>
+    <linearGradient id="kauvery-icon-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D91B5C" />
+      <stop offset="100%" stop-color="#670845" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(4, 8)">
+    <!-- Top Large Petal -->
+    <path d="M 36 10 C 56 -2, 80 8, 75 30 C 70 48, 45 48, 32 40 C 24 35, 22 20, 36 10 Z" fill="url(#kauvery-icon-top)" opacity="0.95" />
+    
+    <!-- Inner Radiant Wing -->
+    <path d="M 32 24 C 48 14, 66 24, 60 40 C 54 52, 34 50, 26 42 C 20 37, 22 28, 32 24 Z" fill="url(#kauvery-icon-inner)" opacity="0.88" />
+    
+    <!-- Bottom Petal -->
+    <path d="M 12 40 C -2 22, 18 16, 32 30 C 42 42, 36 58, 20 58 C 12 58, 4 48, 12 40 Z" fill="url(#kauvery-icon-bottom)" opacity="0.92" />
+  </g>
+</svg>

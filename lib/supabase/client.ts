@@ -1,0 +1,67 @@
+import { UserProfile } from '@/lib/rbac';
+
+export const MOCK_USERS: UserProfile[] = [
+  {
+    id: 'u1111111-1111-1111-1111-111111111111',
+    email: 'dr.sarah.admin@kauvery.org',
+    fullName: 'Dr. Sarah Lin',
+    avatarUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150',
+    status: 'approved',
+    roles: ['super_admin', 'faculty'],
+    activeRole: 'super_admin',
+    scopes: [{ scopeType: 'global' }],
+    departmentId: 'd1111111-1111-1111-1111-111111111111',
+  },
+  {
+    id: 'u2222222-2222-2222-2222-222222222222',
+    email: 'dr.rajesh.faculty@kauvery.org',
+    fullName: 'Dr. Rajesh V.',
+    avatarUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150',
+    status: 'approved',
+    roles: ['faculty'],
+    activeRole: 'faculty',
+    scopes: [{ scopeType: 'department', targetId: 'd1111111-1111-1111-1111-111111111111' }],
+    departmentId: 'd1111111-1111-1111-1111-111111111111',
+  },
+  {
+    id: 'u3333333-3333-3333-3333-333333333333',
+    email: 'em.resident1@kauvery.org',
+    fullName: 'Dr. Arjun Mehta',
+    avatarUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=150',
+    status: 'approved',
+    roles: ['student'],
+    activeRole: 'student',
+    scopes: [{ scopeType: 'course', targetId: 'c1111111-1111-1111-1111-111111111111' }],
+    departmentId: 'd1111111-1111-1111-1111-111111111111',
+  },
+  {
+    id: 'u4444444-4444-4444-4444-444444444444',
+    email: 'em.resident2@kauvery.org',
+    fullName: 'Dr. Priya Sharma',
+    avatarUrl: 'https://images.unsplash.com/photo-1594824813566-88855ce78905?w=150',
+    status: 'pending',
+    roles: ['student'],
+    activeRole: 'student',
+    scopes: [],
+    departmentId: 'd1111111-1111-1111-1111-111111111111',
+  },
+];
+
+export function getInitialUser(): UserProfile {
+  if (typeof window === 'undefined') return MOCK_USERS[0];
+  const storedUser = localStorage.getItem('kem_current_user');
+  if (storedUser) {
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      return MOCK_USERS[0];
+    }
+  }
+  return MOCK_USERS[0];
+}
+
+export function saveCurrentUser(user: UserProfile) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('kem_current_user', JSON.stringify(user));
+  }
+}
