@@ -44,7 +44,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-rose-500 selection:text-white overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans selection:bg-rose-500 selection:text-white overflow-hidden">
       <Navbar />
 
       <main className="flex-1 space-y-28 pb-24">
@@ -65,24 +65,24 @@ export default function LandingPage() {
             className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8 text-center"
           >
             {/* Top Kauvery Hospital Launch Badge */}
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-rose-500/30 bg-rose-950/40 text-rose-300 text-xs font-bold backdrop-blur-xl shadow-xl">
+            <motion.div variants={itemVariants} className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold backdrop-blur-xl shadow-xl">
               <img src="/kauvery-icon.svg" alt="Kauvery" className="w-5 h-5" />
               <span>Target Launch: 20 October 2026</span>
               <span className="text-slate-600">•</span>
-              <span className="text-amber-400 flex items-center gap-1">
+              <span className="text-amber-700 dark:text-amber-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" /> Kauvery Hospital EM Standard
               </span>
             </motion.div>
 
             {/* Main Headline */}
-            <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-tight max-w-5xl mx-auto">
+            <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-tight max-w-5xl mx-auto">
               Empowering Emergency Medicine Residency with{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-purple-300 to-amber-300">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-purple-700 to-amber-700 dark:from-rose-400 dark:via-purple-300 dark:to-amber-300">
                 Precision Proctored Learning
               </span>
             </motion.h1>
 
-            <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-400 max-w-3xl mx-auto leading-relaxed font-normal">
+            <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed font-normal">
               KEM is Kauvery Hospital’s dedicated online learning, assessment, and credentialing platform. Master ACLS resuscitation, emergency airway management, and high-stakes clinical decisions with real-time integrity monitoring.
             </motion.p>
 
@@ -135,15 +135,15 @@ export default function LandingPage() {
 
         {/* Kauvery Hospital Branding Showcase */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-10 rounded-3xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-slate-900/90 to-purple-950/40 backdrop-blur-2xl flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
+          <div className="p-10 rounded-3xl border border-rose-500/30 bg-gradient-to-r from-rose-50 via-white to-purple-50 dark:from-rose-950/40 dark:via-slate-900/90 dark:to-purple-950/40 backdrop-blur-2xl flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
             <div className="flex items-center gap-6">
-              <div className="w-20 h-20 shrink-0 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="w-20 h-20 shrink-0 p-3 rounded-2xl bg-white dark:bg-white/10 backdrop-blur-md border border-slate-200 dark:border-white/20">
                 <img src="/kauvery-icon.svg" alt="Kauvery Hospital Logo" className="w-full h-full object-contain" />
               </div>
               <div className="space-y-1">
-                <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Official Clinical Standard</span>
-                <h3 className="text-2xl font-extrabold text-white">Kauvery Hospital Emergency Medicine Residency</h3>
-                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Official Clinical Standard</span>
+                <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">Kauvery Hospital Emergency Medicine Residency</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
                   Designed in alignment with Kauvery Hospital&apos;s clinical guidelines for emergency resuscitation, trauma care, and intensive care unit preparedness.
                 </p>
               </div>
@@ -161,7 +161,7 @@ export default function LandingPage() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="text-center space-y-3">
             <span className="text-xs font-bold uppercase tracking-widest text-rose-400">Platform Features</span>
-            <h2 className="text-3xl font-extrabold text-white">Built Specifically for High-Stakes Medical Evaluation</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">Built Specifically for High-Stakes Medical Evaluation</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

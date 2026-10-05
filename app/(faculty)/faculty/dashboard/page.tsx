@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/navbar';
 import { Sidebar } from '@/components/sidebar';
@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AIChatbot } from '@/components/ai-chatbot';
+import { useAuthProfile } from '@/components/auth-profile-provider';
+import { getDepartmentById, getFacultyCourses } from '@/lib/supabase/courses';
+import type { Course, Department } from '@/types/supabase';
 import { MOCK_CHART_DATA } from '@/lib/mock-data';
 import {
   ResponsiveContainer,
@@ -22,20 +25,70 @@ import {
   CartesianGrid,
 } from 'recharts';
 import {
-  Stethoscope,
   BookOpen,
   HelpCircle,
   FileCheck2,
-  Users,
   ShieldAlert,
   Plus,
-  ArrowRight,
-  TrendingUp,
 } from 'lucide-react';
 
 export default function FacultyDashboardPage() {
+  const auth = useAuthProfile();
+  const [courseData, setCourseData] = useState<{
+    profileId: string | null;
+    loading: boolean;
+    courses: Course[];
+    department: Department | null;
+    courseError: Error | null;
+    departmentError: Error | null;
+  }>({ profileId: null, loading: true, courses: [], department: null, courseError: null, departmentError: null });
+
+  useEffect(() => {
+    if (auth.status === 'loading' || (auth.status === 'profile' && auth.roleStatus === 'loading')) return;
+
+    const timeout = window.setTimeout(() => {
+      if (auth.status !== 'profile' || !auth.profile) {
+        setCourseData({
+          profileId: null,
+          loading: false,
+          courses: [],
+          department: null,
+          courseError: auth.status === 'error' ? new Error(auth.error ?? 'Your profile could not be loaded.') : null,
+          departmentError: null,
+        });
+        return;
+      }
+
+      const courseRequest = auth.roleStatus === 'error'
+        ? Promise.resolve({ data: [], error: new Error(auth.error ?? 'Faculty role assignments could not be loaded.') })
+        : auth.roles.includes('faculty')
+          ? getFacultyCourses(auth.profile.id)
+          : Promise.resolve({ data: [], error: new Error('A faculty role is required to view assigned courses.') });
+      const departmentRequest = auth.profile.departmentId
+        ? getDepartmentById(auth.profile.departmentId)
+        : Promise.resolve({ data: null, error: null });
+
+      void Promise.all([courseRequest, departmentRequest]).then(([courses, department]) => {
+        setCourseData({
+          profileId: auth.profile?.id ?? null,
+          loading: false,
+          courses: courses.data,
+          department: department.data,
+          courseError: courses.error,
+          departmentError: department.error,
+        });
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [auth.error, auth.profile, auth.roleStatus, auth.roles, auth.status]);
+
+  const dashboardLoading = courseData.loading || auth.status === 'loading' ||
+    (auth.status === 'profile' && (auth.roleStatus === 'loading' || courseData.profileId !== auth.profile?.id)) ||
+    (auth.status !== 'profile' && courseData.profileId !== null);
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
@@ -46,12 +99,19 @@ export default function FacultyDashboardPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl border border-teal-500/30 bg-gradient-to-r from-teal-950/60 via-slate-900 to-slate-900">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Badge variant="info">DEPT SCOPE: EM & TRAUMA</Badge>
-                <span className="text-xs text-slate-400">Faculty ID: EM-FAC-102</span>
+                <Badge variant="info">
+                  {courseData.department?.code ? `DEPT: ${courseData.department.code}` : 'FACULTY WORKSPACE'}
+                </Badge>
+                <span className="text-xs text-slate-400">{auth.profile?.email ?? 'Profile unavailable'}</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white">Faculty Workspace: Dr. Rajesh V.</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-white">
+                Faculty Workspace{auth.profile?.fullName ? `: ${auth.profile.fullName}` : ''}
+              </h1>
               <p className="text-xs text-slate-400">
-                Department of Emergency Medicine • Kauvery Hospital Residency Faculty Lead
+                {courseData.departmentError
+                  ? 'Department information is unavailable.'
+                  : courseData.department?.name ?? (auth.profile?.departmentId ? 'Department not available or not visible.' : 'No department assigned.')}
+                {courseData.department ? ' • Kauvery Hospital Residency' : ''}
               </p>
             </div>
 
@@ -75,8 +135,14 @@ export default function FacultyDashboardPage() {
               <CardContent className="p-5 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-400 font-semibold uppercase">Department Courses</p>
-                  <p className="text-2xl font-black text-white mt-1">2 Active</p>
-                  <p className="text-[10px] text-teal-400 mt-1 font-semibold">ACLS & Airway RSI</p>
+                  <p className="text-2xl font-black text-white mt-1">
+                    {dashboardLoading ? 'Loading' : courseData.courseError ? 'Unavailable' : `${courseData.courses.length} Assigned`}
+                  </p>
+                  <p className="text-[10px] text-teal-400 mt-1 font-semibold truncate">
+                    {courseData.courseError
+                      ? 'Assignments unavailable'
+                      : courseData.courses.map((course) => course.code).join(' • ') || 'No course assignments'}
+                  </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
                   <BookOpen className="w-6 h-6" />

@@ -1,38 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
 import { Navbar } from '@/components/navbar';
 import { Sidebar } from '@/components/sidebar';
 import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/toast-provider';
 import { MOCK_USERS } from '@/lib/supabase/client';
-import { Users, Shield, UserPlus, Key } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 export default function UserManagementPage() {
-  const { toast } = useToast();
-  const [usersList, setUsersList] = useState(MOCK_USERS);
-
-  const handleToggleRole = (userId: string, roleToToggle: any) => {
-    setUsersList((prev) =>
-      prev.map((u) => {
-        if (u.id === userId) {
-          const hasRole = u.roles.includes(roleToToggle);
-          const newRoles = hasRole
-            ? u.roles.filter((r) => r !== roleToToggle)
-            : [...u.roles, roleToToggle];
-          return { ...u, roles: newRoles.length ? newRoles : ['student'] };
-        }
-        return u;
-      })
-    );
-    toast('User Multi-Roles Updated', 'Role matrix synced and saved to profile RLS context.', 'info');
-  };
+  const usersList = MOCK_USERS;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
@@ -40,7 +21,7 @@ export default function UserManagementPage() {
 
         <main className="flex-1 p-6 sm:p-8 space-y-6 overflow-y-auto">
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-white flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Users className="w-6 h-6 text-rose-400" /> User Directory & Multi-Role RBAC Matrix
             </h1>
             <p className="text-xs text-slate-400">
@@ -92,10 +73,11 @@ export default function UserManagementPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleToggleRole(u.id, 'faculty')}
+                          disabled
+                          title="Role assignment updates are not implemented."
                           className="text-xs"
                         >
-                          Toggle Faculty Role
+                          Role Updates Unavailable
                         </Button>
                       </td>
                     </tr>

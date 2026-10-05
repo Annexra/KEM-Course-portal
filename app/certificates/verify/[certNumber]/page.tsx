@@ -14,11 +14,11 @@ export default async function CertificateVerificationPage({
   const { certNumber } = await params;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12 space-y-8">
-        <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" /> Return to KEM Portal
         </Link>
 
@@ -31,7 +31,7 @@ export default async function CertificateVerificationPage({
             <span className="text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               OFFICIALLY VERIFIED
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-3">
               Genuine Kauvery Emergency Medicine Certificate
             </h1>
             <p className="text-xs text-slate-400 mt-1 font-mono">

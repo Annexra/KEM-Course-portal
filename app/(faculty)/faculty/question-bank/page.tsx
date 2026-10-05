@@ -1,70 +1,75 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/navbar';
 import { Sidebar } from '@/components/sidebar';
 import { Footer } from '@/components/footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Modal } from '@/components/ui/modal';
-import { useToast } from '@/components/toast-provider';
+import { useAuthProfile } from '@/components/auth-profile-provider';
+import { getFacultyQuestionBank } from '@/lib/supabase/assessments';
+import type { FacultyQuestion } from '@/types/supabase';
 import {
   HelpCircle,
   Plus,
   Upload,
   Search,
   Filter,
-  CheckCircle2,
   FolderTree,
-  FileSpreadsheet,
 } from 'lucide-react';
 
 export default function QuestionBankPage() {
-  const { toast } = useToast();
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const auth = useAuthProfile();
   const [search, setSearch] = useState('');
+  const [data, setData] = useState<{ loading: boolean; questions: FacultyQuestion[]; error: Error | null }>({
+    loading: true,
+    questions: [],
+    error: null,
+  });
+  const authLoading = auth.status === 'loading' || (auth.status === 'profile' && auth.roleStatus === 'loading');
 
-  const sampleQuestions = [
-    {
-      id: 'q-101',
-      subject: 'Resuscitation Medicine',
-      topic: 'Cardiac Arrest',
-      subtopic: 'Defibrillation & VF',
-      text: 'A 58-year-old male collapses in the ED waiting room. Monitor reveals Ventricular Fibrillation (VF)...',
-      difficulty: 'hard',
-      marks: 1.0,
-      optionsCount: 4,
-    },
-    {
-      id: 'q-102',
-      subject: 'Airway Management',
-      topic: 'RSI Pharmacology',
-      subtopic: 'Induction Agents',
-      text: 'Which induction agent is preferred in a hemodynamically unstable trauma patient requiring RSI?',
-      difficulty: 'medium',
-      marks: 1.0,
-      optionsCount: 4,
-    },
-    {
-      id: 'q-103',
-      subject: 'Trauma Care',
-      topic: 'Chest Trauma',
-      subtopic: 'Tension Pneumothorax',
-      text: 'What is the immediate decompression landmark for tension pneumothorax according to ATLS 10th edition?',
-      difficulty: 'medium',
-      marks: 1.0,
-      optionsCount: 4,
-    },
-  ];
+  useEffect(() => {
+    if (authLoading) return;
 
-  const handleBulkImport = () => {
-    toast('Bulk Questions Imported Successfully!', '15 new MCQs parsed from CSV file.', 'success');
-    setIsImportModalOpen(false);
-  };
+    let isActive = true;
+    const timeout = window.setTimeout(() => {
+      if (auth.status !== 'profile' || auth.roleStatus !== 'loaded' || auth.profile?.status !== 'approved') {
+        setData({
+          loading: false,
+          questions: [],
+          error: new Error(auth.error ?? 'A verified faculty permission is required to view the question bank.'),
+        });
+        return;
+      }
+
+      if (!auth.permissions.includes('question_bank:manage')) {
+        setData({ loading: false, questions: [], error: new Error('The question_bank:manage permission is required to view this page.') });
+        return;
+      }
+
+      void getFacultyQuestionBank().then((result) => {
+        if (!isActive) return;
+        setData({ loading: false, questions: result.data, error: result.error });
+      });
+    }, 0);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeout);
+    };
+  }, [auth.error, auth.profile?.status, auth.permissions, auth.roleStatus, auth.status, authLoading]);
+
+  const isLoading = data.loading || authLoading;
+  const filteredQuestions = data.questions.filter((question) => {
+    const searchValue = search.trim().toLowerCase();
+    if (!searchValue) return true;
+    return [question.text, question.subject?.name, question.topic?.name, question.subtopic?.name]
+      .some((value) => value?.toLowerCase().includes(searchValue));
+  });
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
@@ -74,7 +79,7 @@ export default function QuestionBankPage() {
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-black text-white flex items-center gap-2">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <HelpCircle className="w-6 h-6 text-sky-400" /> Emergency Question Bank Hierarchy
               </h1>
               <p className="text-xs text-slate-400">
@@ -83,10 +88,10 @@ export default function QuestionBankPage() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)}>
+              <Button variant="outline" size="sm" disabled title="Question imports are not implemented.">
                 <Upload className="w-4 h-4" /> CSV / Excel Import
               </Button>
-              <Button variant="primary" size="sm">
+              <Button variant="primary" size="sm" disabled title="Question creation is not implemented.">
                 <Plus className="w-4 h-4" /> Add Single MCQ
               </Button>
             </div>
@@ -128,14 +133,22 @@ export default function QuestionBankPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
-                  {sampleQuestions.map((q) => (
+                  {isLoading ? (
+                    <tr><td colSpan={5} className="p-6 text-slate-400">Loading question bank...</td></tr>
+                  ) : data.error ? (
+                    <tr><td colSpan={5} className="p-6 text-amber-400">Question bank data is unavailable under current database access policies.</td></tr>
+                  ) : filteredQuestions.length === 0 ? (
+                    <tr><td colSpan={5} className="p-6 text-slate-400">
+                      {data.questions.length ? 'No questions match this search.' : 'No visible questions were found.'}
+                    </td></tr>
+                  ) : filteredQuestions.map((q) => (
                     <tr key={q.id} className="hover:bg-slate-800/40 transition-colors">
                       <td className="p-4 font-semibold">
                         <div className="flex items-center gap-1.5 text-sky-400 text-xs">
-                          <FolderTree className="w-3.5 h-3.5" /> {q.subject}
+                          <FolderTree className="w-3.5 h-3.5" /> {q.subject?.name ?? 'Subject unavailable'}
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
-                          {q.topic} &gt; {q.subtopic}
+                          {q.topic?.name ?? 'Topic unavailable'} &gt; {q.subtopic?.name ?? 'Subtopic unavailable'}
                         </div>
                       </td>
                       <td className="p-4 text-slate-200 font-medium max-w-xs truncate">
@@ -150,8 +163,8 @@ export default function QuestionBankPage() {
                         {q.marks} Mark
                       </td>
                       <td className="p-4">
-                        <Button variant="ghost" size="sm" className="text-xs">
-                          Edit MCQ
+                        <Button variant="ghost" size="sm" className="text-xs" disabled title="Question editing is not implemented.">
+                          Read Only
                         </Button>
                       </td>
                     </tr>
@@ -162,31 +175,6 @@ export default function QuestionBankPage() {
           </Card>
         </main>
       </div>
-
-      {/* CSV Bulk Import Modal */}
-      <Modal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        title="Bulk MCQ Import via CSV / Excel"
-        description="Upload question bank CSV formatted with columns: Subject, Topic, Subtopic, Question, OptionA, OptionB, OptionC, OptionD, CorrectOption, Marks, Explanation."
-      >
-        <div className="space-y-4 text-xs">
-          <div className="p-8 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-950/60 text-center space-y-2">
-            <FileSpreadsheet className="w-10 h-10 text-sky-400 mx-auto" />
-            <p className="font-bold text-white">Drag & drop question bank .csv file here</p>
-            <p className="text-[10px] text-slate-400">Supported formats: .csv, .xlsx (Max 5MB)</p>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleBulkImport}>
-              Parse & Import 15 MCQs
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <Footer />
     </div>

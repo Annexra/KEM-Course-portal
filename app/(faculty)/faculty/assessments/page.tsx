@@ -1,31 +1,62 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/navbar';
 import { Sidebar } from '@/components/sidebar';
 import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/toast-provider';
-import { FileCheck2, Plus, Settings, Shuffle, Clock, ShieldAlert } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useAuthProfile } from '@/components/auth-profile-provider';
+import { getFacultyAssessments } from '@/lib/supabase/assessments';
+import type { Assessment } from '@/types/supabase';
+import { AlertCircle, FileCheck2, Clock } from 'lucide-react';
 
 export default function FacultyAssessmentsPage() {
-  const { toast } = useToast();
-  const [title, setTitle] = useState('ACLS Emergency Resuscitation Mock Exam 2');
-  const [type, setType] = useState<'assessment' | 'mock_test'>('assessment');
-  const [duration, setDuration] = useState('30');
-  const [passPct, setPassPct] = useState('75');
-  const [negativeMarking, setNegativeMarking] = useState('0.25');
-  const [randomizeQs, setRandomizeQs] = useState(true);
-  const [randomizeOptions, setRandomizeOptions] = useState(true);
+  const auth = useAuthProfile();
+  const [data, setData] = useState<{ profileId: string | null; loading: boolean; assessments: Assessment[]; error: Error | null }>({
+    profileId: null,
+    loading: true,
+    assessments: [],
+    error: null,
+  });
+  const authLoading = auth.status === 'loading' || (auth.status === 'profile' && auth.roleStatus === 'loading');
 
-  const handleCreateAssessment = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast('Assessment Playbook Created!', `"${title}" is published and available for student attempts.`, 'success');
-  };
+  useEffect(() => {
+    if (authLoading) return;
+
+    let isActive = true;
+    const timeout = window.setTimeout(() => {
+      if (auth.status !== 'profile' || auth.roleStatus !== 'loaded' || auth.profile?.status !== 'approved') {
+        setData({
+          profileId: auth.status === 'profile' ? auth.profile?.id ?? null : null,
+          loading: false,
+          assessments: [],
+          error: new Error(auth.error ?? 'A verified faculty permission is required to view assessments.'),
+        });
+        return;
+      }
+
+      if (!auth.roles.includes('faculty') || !auth.permissions.includes('assessment:manage')) {
+        setData({ profileId: auth.profile.id, loading: false, assessments: [], error: new Error('Faculty assessment access is unavailable for this account.') });
+        return;
+      }
+
+      void getFacultyAssessments(auth.profile.id).then((result) => {
+        if (!isActive) return;
+        setData({ profileId: auth.profile?.id ?? null, loading: false, assessments: result.data, error: result.error });
+      });
+    }, 0);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeout);
+    };
+  }, [auth.error, auth.permissions, auth.profile, auth.roleStatus, auth.roles, auth.status, authLoading]);
+
+  const isLoading = data.loading || authLoading || (auth.status === 'profile' && data.profileId !== auth.profile?.id);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
@@ -33,118 +64,59 @@ export default function FacultyAssessmentsPage() {
 
         <main className="flex-1 p-6 sm:p-8 space-y-6 overflow-y-auto">
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-white flex items-center gap-2">
-              <FileCheck2 className="w-6 h-6 text-teal-400" /> Assessment & Mock Test Builder
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <FileCheck2 className="w-6 h-6 text-teal-400" /> Faculty Assessments & Mock Tests
             </h1>
             <p className="text-xs text-slate-400">
-              Configure exam duration, randomized questions, snapshot options, and negative marking rules.
+              Read-only assessment records associated with your profile and assigned courses.
             </p>
           </div>
 
-          <form onSubmit={handleCreateAssessment} className="max-w-3xl space-y-6">
+          <div className="max-w-3xl space-y-6">
             <Card className="border-slate-800 bg-slate-900/90 text-white">
               <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-sky-400" /> Exam Configuration Settings
-                </CardTitle>
+                <CardTitle className="text-sm font-bold">Assessment Records</CardTitle>
+                <CardDescription className="text-xs text-slate-400">Creation and editing are not available in this phase.</CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="font-bold text-slate-200">Assessment Title</label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 focus:ring-2 focus:ring-sky-500 text-white text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-200">Type</label>
-                    <select
-                      value={type}
-                      onChange={(e) => setType(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs"
-                    >
-                      <option value="assessment">Proctored Assessment (Recorded Integrity)</option>
-                      <option value="mock_test">Practice Mock Test (Self-Paced)</option>
-                    </select>
+                {isLoading ? (
+                  <div className="space-y-3" aria-label="Loading assessments">
+                    {[0, 1].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-slate-800" />)}
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-200">Duration (Minutes)</label>
-                    <input
-                      type="number"
-                      value={duration}
-                      onChange={(e) => setDuration(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs"
-                    />
+                ) : data.error ? (
+                  <div className="flex items-start gap-3 text-amber-400">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <p>Assessment records are unavailable under current database access policies.</p>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-200">Passing Score (%)</label>
-                    <input
-                      type="number"
-                      value={passPct}
-                      onChange={(e) => setPassPct(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs"
-                    />
+                ) : data.assessments.length === 0 ? (
+                  <p className="text-slate-400">No visible assessments are associated with this profile or its assigned courses.</p>
+                ) : (
+                  <div className="divide-y divide-slate-800">
+                    {data.assessments.map((assessment) => (
+                      <div key={assessment.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={assessment.type === 'mock_test' ? 'warning' : 'info'}>{assessment.type.replace('_', ' ')}</Badge>
+                            <Badge variant={assessment.status === 'published' ? 'success' : 'outline'}>{assessment.status}</Badge>
+                          </div>
+                          <p className="font-bold text-white">{assessment.title}</p>
+                          <p className="text-slate-400">
+                            {assessment.duration_minutes} minutes · Pass {assessment.pass_percentage}% · Max attempts {assessment.max_attempts}
+                            {assessment.course_id ? ` · Course ${assessment.course_id}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-400">
+                          <Clock className="h-4 w-4 text-amber-400" />
+                          {assessment.negative_marking > 0 ? `-${assessment.negative_marking} marking` : 'No negative marking'}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-200">Negative Marking (Marks Deducted)</label>
-                    <input
-                      type="text"
-                      value={negativeMarking}
-                      onChange={(e) => setNegativeMarking(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Toggles */}
-                <div className="pt-4 border-t border-slate-800 space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={randomizeQs}
-                      onChange={(e) => setRandomizeQs(e.target.checked)}
-                      className="w-4 h-4 rounded text-sky-500 bg-slate-950 border-slate-800"
-                    />
-                    <div>
-                      <p className="font-bold text-white">Randomize Question Order</p>
-                      <p className="text-[10px] text-slate-400">Pulls unique order for every student attempt.</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={randomizeOptions}
-                      onChange={(e) => setRandomizeOptions(e.target.checked)}
-                      className="w-4 h-4 rounded text-sky-500 bg-slate-950 border-slate-800"
-                    />
-                    <div>
-                      <p className="font-bold text-white">Randomize Option Choices</p>
-                      <p className="text-[10px] text-slate-400">Shuffles A, B, C, D answer choices dynamically.</p>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="pt-4">
-                  <Button type="submit" variant="primary" size="md">
-                    <Plus className="w-4 h-4" /> Save & Publish Assessment
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
-          </form>
+          </div>
         </main>
       </div>
 

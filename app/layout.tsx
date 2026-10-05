@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/toast-provider';
+import { AuthProfileProvider } from '@/components/auth-profile-provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,11 +34,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased min-h-screen bg-slate-950 text-slate-100 selection:bg-sky-500 selection:text-white`}>
-        <ThemeProvider defaultTheme="dark">
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground selection:bg-sky-500 selection:text-white`}>
+        <ThemeProvider defaultTheme="light">
           <ToastProvider>
-            {children}
+            <AuthProfileProvider>{children}</AuthProfileProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

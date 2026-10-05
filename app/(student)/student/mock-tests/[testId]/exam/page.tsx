@@ -1,4 +1,4 @@
-import { MockTestExam } from '@/components/mock-test-exam';
+import { redirect } from 'next/navigation';
 
 export default async function MockTestExamPage({
   params,
@@ -6,5 +6,5 @@ export default async function MockTestExamPage({
   params: Promise<{ testId: string }>;
 }) {
   const { testId } = await params;
-  return <MockTestExam testId={testId} />;
+  redirect(`/student/assessments/${testId}`);
 }

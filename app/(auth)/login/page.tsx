@@ -5,35 +5,112 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldAlert, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
-import { MOCK_USERS, saveCurrentUser } from '@/lib/supabase/client';
 import { GhostCursorLayer } from '@/components/effects/GhostCursorLayer';
+import { useAuthProfile } from '@/components/auth-profile-provider';
+import { signIn } from '@/lib/supabase/auth';
+import { getDefaultDashboardForRole } from '@/lib/rbac';
+
+const DEMO_USERS = [
+  {
+    label: 'Dr. Arjun Mehta (Approved Student)',
+    email: 'em.resident1@kauvery.org',
+    password: 'Kauvery@2026!',
+  },
+  {
+    label: 'Dr. Priya Sharma (Pending Student)',
+    email: 'em.resident2@kauvery.org',
+    password: 'Kauvery@2026!',
+  },
+  {
+    label: 'Dr. Rajesh V. (Faculty Lead)',
+    email: 'dr.rajesh.faculty@kauvery.org',
+    password: 'Kauvery@2026!',
+  },
+  {
+    label: 'Dr. Sarah Lin (Super Admin)',
+    email: 'dr.sarah.admin@kauvery.org',
+    password: 'Kauvery@2026!',
+  },
+] as const;
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { refreshProfile } = useAuthProfile();
   const [loading, setLoading] = useState(false);
 
-  const handleGoogleLogin = (userIndex: number) => {
+  const handleLogin = async (user: (typeof DEMO_USERS)[number]) => {
     setLoading(true);
-    const selectedUser = MOCK_USERS[userIndex];
-    saveCurrentUser(selectedUser);
 
-    setTimeout(() => {
-      setLoading(false);
-      if (selectedUser.status === 'pending') {
-        toast('Account Registration Pending', 'Your profile is awaiting faculty approval.', 'info');
-        router.push('/pending');
-      } else {
-        toast('Google OAuth Authentication Successful', `Welcome back, ${selectedUser.fullName}`, 'success');
-        router.push('/student/dashboard');
+    try {
+      const { data, error } = await signIn(user.email, user.password);
+
+      if (error) {
+        const message = error.message.includes('Email not confirmed')
+          ? 'This account requires email confirmation before sign-in.'
+          : 'Unable to sign in with the selected Supabase account.';
+
+        toast('Authentication Failed', message, 'error');
+        return;
       }
-    }, 800);
+
+      const authenticatedUser = data?.user;
+      if (!authenticatedUser) {
+        toast('Authentication Failed', 'No active session was returned by Supabase.', 'error');
+        return;
+      }
+
+      const authState = await refreshProfile(authenticatedUser);
+      if (!authState || authState.status === 'error') {
+        toast('Role Lookup Failed', authState?.error ?? 'Unable to load your application roles.', 'error');
+        router.push('/');
+        return;
+      }
+
+      if (authState.status === 'profile_missing') {
+        toast('Profile Not Available', 'No visible profile matched this email; it may be missing or hidden by database access policy.', 'error');
+        router.push('/');
+        return;
+      }
+
+      if (authState.roleStatus === 'error') {
+        toast('Role Lookup Failed', authState.error ?? 'Unable to load your application roles.', 'error');
+        router.push('/');
+        return;
+      }
+
+      if (authState.profile?.status === 'pending') {
+        toast('Approval Pending', 'Your profile is awaiting approval.', 'info');
+        router.push('/pending');
+        return;
+      }
+
+      if (authState.profile?.status === 'revoked') {
+        toast('Access Revoked', 'This profile is not approved for application access.', 'error');
+        router.push('/');
+        return;
+      }
+
+      if (authState.primaryRole) {
+        router.push(getDefaultDashboardForRole(authState.primaryRole));
+      } else {
+        toast('No Primary Role', 'Your profile has no role or multiple roles without a primary-role rule.', 'info');
+        router.push('/');
+      }
+
+      toast('Supabase Authentication Successful', `Welcome back, ${authenticatedUser.email ?? 'user'}.`, 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected Supabase sign-in error.';
+      toast('Authentication Error', message, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 p-4 font-sans relative overflow-hidden">
       {/* GhostCursor Visual Effect */}
       <GhostCursorLayer tone="auth" zIndex={5} />
 
@@ -53,7 +130,7 @@ export default function LoginPage() {
               <div className="w-14 h-14 p-2.5 rounded-2xl bg-white/10 border border-white/20 shadow-xl">
                 <img src="/kauvery-icon.svg" alt="Kauvery Hospital" className="w-full h-full object-contain" />
               </div>
-              <span className="font-black text-2xl tracking-tight text-white flex items-center gap-1">
+              <span className="font-black text-2xl tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
                 kauvery<span className="text-sm text-slate-400 font-normal">hospital</span>
               </span>
             </div>
@@ -70,45 +147,20 @@ export default function LoginPage() {
 
           <CardContent className="p-6 space-y-4">
             <div className="space-y-2.5">
-              <Button
-                variant="glass"
-                className="w-full py-3.5 text-xs font-bold justify-start gap-3 bg-slate-800/80 hover:bg-slate-700/80 border-slate-700"
-                onClick={() => handleGoogleLogin(2)}
-                isLoading={loading}
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                Sign in as Dr. Arjun Mehta (Approved Student)
-              </Button>
-
-              <Button
-                variant="glass"
-                className="w-full py-3.5 text-xs font-bold justify-start gap-3 bg-slate-800/80 hover:bg-slate-700/80 border-slate-700"
-                onClick={() => handleGoogleLogin(3)}
-                isLoading={loading}
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                Sign in as Dr. Priya Sharma (Pending Student)
-              </Button>
-
-              <Button
-                variant="glass"
-                className="w-full py-3.5 text-xs font-bold justify-start gap-3 bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-teal-300"
-                onClick={() => handleGoogleLogin(1)}
-                isLoading={loading}
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                Sign in as Dr. Rajesh V. (Faculty Lead)
-              </Button>
-
-              <Button
-                variant="glass"
-                className="w-full py-3.5 text-xs font-bold justify-start gap-3 bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-purple-300"
-                onClick={() => handleGoogleLogin(0)}
-                isLoading={loading}
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                Sign in as Dr. Sarah Lin (Super Admin)
-              </Button>
+              {DEMO_USERS.map((user, index) => (
+                <Button
+                  key={user.email}
+                  variant="glass"
+                  className={`w-full py-3.5 text-xs font-bold justify-start gap-3 bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 ${
+                    index === 2 ? 'text-teal-300' : index === 3 ? 'text-purple-300' : ''
+                  }`}
+                  onClick={() => handleLogin(user)}
+                  isLoading={loading}
+                >
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
+                  {user.label}
+                </Button>
+              ))}
             </div>
 
             <div className="pt-2 text-center text-[10px] text-slate-500 space-y-1">

@@ -12,6 +12,7 @@ interface ThemeProviderProps {
 
 interface ThemeContextType {
   theme: Theme;
+  resolvedTheme: 'dark' | 'light';
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
@@ -20,20 +21,37 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'dark',
+  defaultTheme = 'light',
   storageKey = 'kem-theme',
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
+  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>('light');
+  const resolvedTheme = theme === 'system' ? systemTheme : theme;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateSystemTheme = () => setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
+    const timeout = window.setTimeout(updateSystemTheme, 0);
+    mediaQuery.addEventListener('change', updateSystemTheme);
+
+    return () => {
+      window.clearTimeout(timeout);
+      mediaQuery.removeEventListener('change', updateSystemTheme);
+    };
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem(storageKey) as Theme | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    } else {
-      setThemeState(defaultTheme);
-    }
-    setMounted(true);
+    const initialTheme = savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'system'
+      ? savedTheme
+      : defaultTheme;
+    const timeout = window.setTimeout(() => {
+      setThemeState(initialTheme);
+      setMounted(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [defaultTheme, storageKey]);
 
   useEffect(() => {
@@ -41,29 +59,22 @@ export function ThemeProvider({
 
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(theme);
-    }
+    root.classList.add(resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
 
     localStorage.setItem(storageKey, theme);
-  }, [theme, mounted, storageKey]);
+  }, [theme, resolvedTheme, mounted, storageKey]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
   };
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setThemeState((previous) => (previous === 'system' ? systemTheme : previous) === 'dark' ? 'light' : 'dark');
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -8,7 +8,7 @@ import { Footer } from '@/components/footer';
 import { ExamConfig, ExamUI } from '@/components/exam-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { getInitialUser } from '@/lib/supabase/client';
+import { useAuthProfile } from '@/components/auth-profile-provider';
 import {
   createQuestionSnapshot,
   MockTestAttempt,
@@ -19,12 +19,17 @@ import {
 import { AlertCircle, ArrowLeft, LoaderCircle } from 'lucide-react';
 
 export function MockTestExam({ testId }: { testId: string }) {
+  const { status, roleStatus, profile, roles, scopes, error: authError } = useAuthProfile();
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState<MockTestAttempt | null>(null);
   const [exam, setExam] = useState<ExamConfig | null>(null);
   const [error, setError] = useState('');
+  const isAuthLoading = status === 'loading' || (status === 'profile' && roleStatus === 'loading');
+  const isPageLoading = isLoading || isAuthLoading;
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
     const timeout = window.setTimeout(() => {
       const test = MOCK_TESTS.find((item) => item.id === testId);
       if (!test) {
@@ -33,14 +38,27 @@ export function MockTestExam({ testId }: { testId: string }) {
         return;
       }
 
-      const user = getInitialUser();
-      if (user.status !== 'approved' || !user.roles.includes('student')) {
+      if (status === 'error' || roleStatus === 'error') {
+        setError(authError ?? 'Your profile or role assignments could not be loaded.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (status !== 'profile' || !profile) {
+        setError(status === 'signed_out'
+          ? 'Sign in with an approved student account to start a mock test.'
+          : 'No visible application profile is linked to this account; it may be missing or hidden by database access policy.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (profile.status !== 'approved' || !roles.includes('student')) {
         setError('An approved student account is required to start a mock test.');
         setIsLoading(false);
         return;
       }
 
-      const hasScope = !test.courseId || user.scopes.some(
+      const hasScope = !test.courseId || scopes.some(
         (scope) => scope.scopeType === 'global' || (scope.scopeType === 'course' && scope.targetId === test.courseId)
       );
       if (!hasScope) {
@@ -49,7 +67,8 @@ export function MockTestExam({ testId }: { testId: string }) {
         return;
       }
 
-      const savedAttempts = readMockTestAttempts(user.id)
+      setError('');
+      const savedAttempts = readMockTestAttempts(profile.id)
         .filter((item) => item.testId === test.id)
         .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
       let selectedAttempt = savedAttempts.find((item) => item.status === 'in_progress');
@@ -76,7 +95,7 @@ export function MockTestExam({ testId }: { testId: string }) {
         selectedAttempt = {
           attemptId: window.crypto.randomUUID(),
           testId: test.id,
-          userId: user.id,
+          userId: profile.id,
           attemptNumber: savedAttempts.length + 1,
           status: 'in_progress',
           startedAt: startedAt.toISOString(),
@@ -105,7 +124,7 @@ export function MockTestExam({ testId }: { testId: string }) {
       setIsLoading(false);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [testId]);
+  }, [authError, isAuthLoading, profile, roleStatus, roles, scopes, status, testId]);
 
   const updateAnswers = (selectedAnswers: Record<string, string>) => {
     if (!attempt) return;
@@ -156,7 +175,7 @@ export function MockTestExam({ testId }: { testId: string }) {
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
         <Sidebar portal="student" />
         <main className="flex-1 p-5 sm:p-8">
-          {isLoading ? (
+          {isPageLoading ? (
             <div className="flex min-h-72 items-center justify-center gap-3 text-sm text-slate-500 dark:text-slate-400" role="status">
               <LoaderCircle className="h-5 w-5 animate-spin text-purple-500" /> Preparing your frozen question set...
             </div>

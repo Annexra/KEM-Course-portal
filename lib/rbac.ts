@@ -14,6 +14,7 @@ export interface UserProfile {
   status: UserStatus;
   roles: UserRole[];
   activeRole: UserRole;
+  permissions?: PermissionKey[];
   scopes: UserScope[];
   departmentId?: string;
 }
@@ -37,42 +38,6 @@ export interface ScopeCheckOptions {
   courseId?: string;
 }
 
-// Role to Permissions mapping
-const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
-  super_admin: [
-    'course:read',
-    'course:write',
-    'course:delete',
-    'assessment:take',
-    'assessment:manage',
-    'question_bank:manage',
-    'student:approve',
-    'student:view_all',
-    'users:manage',
-    'integrity:review',
-    'audit:view_restore',
-    'settings:manage',
-  ],
-  sub_admin: [
-    'course:read',
-    'course:write',
-    'assessment:manage',
-    'question_bank:manage',
-    'student:approve',
-    'student:view_all',
-    'integrity:review',
-  ],
-  faculty: [
-    'course:read',
-    'course:write',
-    'assessment:manage',
-    'question_bank:manage',
-    'student:view_all',
-    'integrity:review',
-  ],
-  student: ['course:read', 'assessment:take'],
-};
-
 /**
  * Checks if a user has a permission in a given scope context
  */
@@ -87,37 +52,27 @@ export function can(
   if (user.status === 'revoked') return false;
   if (user.status === 'pending' && permission !== 'course:read') return false;
 
-  const role = user.activeRole || user.roles[0];
-  const allowedPermissions = ROLE_PERMISSIONS[role] || [];
-
-  if (!allowedPermissions.includes(permission)) {
+  if (!user.permissions?.includes(permission)) {
     return false;
   }
-
-  // Super admins have global access
-  if (role === 'super_admin') return true;
 
   // Evaluate Scope
   if (user.scopes.some((s) => s.scopeType === 'global')) {
     return true;
   }
 
-  if (options?.departmentId) {
-    const hasDeptScope = user.scopes.some(
-      (s) => s.scopeType === 'department' && s.targetId === options.departmentId
-    );
-    if (hasDeptScope) return true;
-  }
+  const hasDepartmentConstraint = Boolean(options?.departmentId);
+  const hasCourseConstraint = Boolean(options?.courseId);
+  if (!hasDepartmentConstraint && !hasCourseConstraint) return true;
 
-  if (options?.courseId) {
-    const hasCourseScope = user.scopes.some(
-      (s) => s.scopeType === 'course' && s.targetId === options.courseId
-    );
-    if (hasCourseScope) return true;
-  }
+  const departmentAllowed = !hasDepartmentConstraint || user.scopes.some(
+    (scope) => scope.scopeType === 'department' && scope.targetId === options?.departmentId
+  );
+  const courseAllowed = !hasCourseConstraint || user.scopes.some(
+    (scope) => scope.scopeType === 'course' && scope.targetId === options?.courseId
+  );
 
-  // If no restrictive options passed and user has permission
-  return true;
+  return departmentAllowed && courseAllowed;
 }
 
 export function getDefaultDashboardForRole(role: UserRole): string {

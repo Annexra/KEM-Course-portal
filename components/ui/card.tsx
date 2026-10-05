@@ -2,11 +2,29 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  const hasExplicitDarkSurface = /(?:^|\s)bg-slate-(?:900|950)(?:\/\d+)?(?:\s|$)/.test(className ?? '');
+  const themeAwareClassName = hasExplicitDarkSurface
+    ? `theme-aware-surface ${(className ?? '')
+      .replace(/\bbg-slate-(?:900|950)(?:\/\d+)?\b/g, '')
+      .replace(/\bborder-slate-800(?:\/\d+)?\b/g, '')
+      .replace(/\btext-white\b/g, '')}`
+    : className;
+  const baseClasses = hasExplicitDarkSurface
+    ? 'rounded-2xl border shadow-xl backdrop-blur-md overflow-hidden transition-all duration-300'
+    : 'rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 backdrop-blur-md overflow-hidden transition-all duration-300';
+
   return (
     <div
+      data-theme-surface={hasExplicitDarkSurface ? 'dark' : 'default'}
+      style={hasExplicitDarkSurface ? {
+        backgroundColor: 'var(--theme-card-background)',
+        color: 'var(--theme-card-foreground)',
+        borderColor: 'var(--theme-card-border)',
+        boxShadow: 'var(--theme-card-shadow)',
+      } : undefined}
       className={cn(
-        'rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 backdrop-blur-md overflow-hidden transition-all duration-300',
-        className
+        baseClasses,
+        themeAwareClassName
       )}
       {...props}
     >

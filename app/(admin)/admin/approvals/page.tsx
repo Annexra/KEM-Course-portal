@@ -46,7 +46,7 @@ export default function StudentApprovalsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
       <Navbar />
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
@@ -54,7 +54,7 @@ export default function StudentApprovalsPage() {
 
         <main className="flex-1 p-6 sm:p-8 space-y-6 overflow-y-auto">
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-white flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-rose-400" /> Student Verification & Approval Queue
             </h1>
             <p className="text-xs text-slate-400">

@@ -1,78 +1,177 @@
 'use client';
 
-import React from 'react';
-import { ExamUI, ExamConfig } from '@/components/exam-ui';
+import React, { use, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Navbar } from '@/components/navbar';
+import { Sidebar } from '@/components/sidebar';
+import { Footer } from '@/components/footer';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useAuthProfile } from '@/components/auth-profile-provider';
+import { getStudentAssessmentPreview, type StudentAssessmentPreview } from '@/lib/supabase/assessments';
+import { AlertCircle, ArrowLeft, BookOpen } from 'lucide-react';
 
-const SAMPLE_EXAM: ExamConfig = {
-  id: 'a1111111-1111-1111-1111-111111111111',
-  title: 'ACLS Final Residency Proctored Examination (2026 Edition)',
-  durationMinutes: 30,
-  passPercentage: 75.0,
-  negativeMarking: 0.25,
-  questions: [
-    {
-      id: 'q-1',
-      text: 'A 58-year-old male collapses in the ED waiting room. Monitor reveals Ventricular Fibrillation (VF). What is the immediate next priority action after initiating high-quality CPR?',
-      explanation: 'In pulseless VF/pVT, immediate unsynchronized defibrillation at 120-200J (biphasic) is the primary intervention for ROSC.',
-      marks: 1.0,
-      options: [
-        { id: 'opt-1a', text: 'Administer Epinephrine 1mg IV push', isCorrect: false },
-        { id: 'opt-1b', text: 'Perform immediate unsynchronized defibrillation (120-200J biphasic)', isCorrect: true },
-        { id: 'opt-1c', text: 'Perform endotracheal intubation', isCorrect: false },
-        { id: 'opt-1d', text: 'Administer Amiodarone 300mg IV', isCorrect: false },
-      ],
-    },
-    {
-      id: 'q-2',
-      text: 'During cardiac arrest with a non-shockable rhythm (Asystole/PEA), when should the first dose of Epinephrine be administered?',
-      explanation: 'For non-shockable rhythms, Epinephrine 1mg IV/IO should be given as soon as feasible after CPR start.',
-      marks: 1.0,
-      options: [
-        { id: 'opt-2a', text: 'As soon as feasible after CPR start', isCorrect: true },
-        { id: 'opt-2b', text: 'Only after 2 cycles of CPR', isCorrect: false },
-        { id: 'opt-2c', text: 'After 10 minutes of non-responsive CPR', isCorrect: false },
-        { id: 'opt-2d', text: 'Only after atropine fails', isCorrect: false },
-      ],
-    },
-    {
-      id: 'q-3',
-      text: 'What is the recommended target PetCO2 (End-Tidal CO2) value during high-quality CPR to indicate adequate chest compression fraction?',
-      explanation: 'PetCO2 < 10 mmHg indicates low chest compression quality. Target PetCO2 > 10-20 mmHg.',
-      marks: 1.0,
-      options: [
-        { id: 'opt-3a', text: '< 5 mmHg', isCorrect: false },
-        { id: 'opt-3b', text: '> 10 to 20 mmHg', isCorrect: true },
-        { id: 'opt-3c', text: '> 45 mmHg', isCorrect: false },
-        { id: 'opt-3d', text: 'PetCO2 cannot be monitored during CPR', isCorrect: false },
-      ],
-    },
-    {
-      id: 'q-4',
-      text: 'In refractory Ventricular Fibrillation after 2 shocks and 1 dose of Epinephrine, what is the recommended initial IV dose of Amiodarone?',
-      explanation: 'First dose of Amiodarone in refractory VF/pVT is 300 mg IV/IO bolus, followed by a second dose of 150 mg.',
-      marks: 1.0,
-      options: [
-        { id: 'opt-4a', text: '150 mg IV bolus', isCorrect: false },
-        { id: 'opt-4b', text: '300 mg IV/IO bolus', isCorrect: true },
-        { id: 'opt-4c', text: '1 mg/kg IV', isCorrect: false },
-        { id: 'opt-4d', text: '1 gram IV drip over 1 hour', isCorrect: false },
-      ],
-    },
-    {
-      id: 'q-5',
-      text: 'A patient with symptomatic Bradycardia (HR 34 bpm, BP 82/50) fails to respond to Atropine 1mg IV. What is the recommended second-line therapy?',
-      explanation: 'Transcutaneous pacing or continuous infusion of Dopamine (5-20 mcg/kg/min) or Epinephrine (2-10 mcg/min) is indicated for atropine-refractory symptomatic bradycardia.',
-      marks: 1.0,
-      options: [
-        { id: 'opt-5a', text: 'Transcutaneous pacing or Epinephrine/Dopamine infusion', isCorrect: true },
-        { id: 'opt-5b', text: 'Adenosine 6mg rapid IV push', isCorrect: false },
-        { id: 'opt-5c', text: 'Amiodarone 150mg IV drip', isCorrect: false },
-        { id: 'opt-5d', text: 'Metoprolol 5mg IV push', isCorrect: false },
-      ],
-    },
-  ],
-};
+export default function AssessmentQuestionPreviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const auth = useAuthProfile();
+  const [data, setData] = useState<{
+    assessmentId: string | null;
+    profileId: string | null;
+    loading: boolean;
+    preview: StudentAssessmentPreview | null;
+    error: Error | null;
+  }>({ assessmentId: null, profileId: null, loading: true, preview: null, error: null });
 
-export default function ExamPage() {
-  return <ExamUI exam={SAMPLE_EXAM} />;
+  useEffect(() => {
+    if (auth.status === 'loading' || (auth.status === 'profile' && auth.roleStatus === 'loading')) return;
+
+    let isActive = true;
+    const timeout = window.setTimeout(() => {
+      const profile = auth.profile;
+      if (auth.status !== 'profile' || auth.roleStatus !== 'loaded' || !profile || profile.status !== 'approved' || !auth.roles.includes('student')) {
+        setData({
+          assessmentId: id,
+          profileId: null,
+          loading: false,
+          preview: null,
+          error: new Error(auth.error ?? 'An approved student profile is required to view assessment questions.'),
+        });
+        return;
+      }
+
+      void getStudentAssessmentPreview(id, profile.id).then((preview) => {
+        if (!isActive) return;
+        setData({ assessmentId: id, profileId: profile.id, loading: false, preview, error: null });
+      });
+    }, 0);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeout);
+    };
+  }, [auth.error, auth.profile, auth.roleStatus, auth.roles, auth.status, id]);
+
+  const expectedProfileId = auth.status === 'profile' ? auth.profile?.id ?? null : null;
+  const isLoading = data.loading || auth.status === 'loading' ||
+    (auth.status === 'profile' && auth.roleStatus === 'loading') ||
+    data.assessmentId !== id || data.profileId !== expectedProfileId;
+  const assessment = data.preview?.assessment ?? null;
+  const hasCourseAccess = !assessment?.course_id || data.preview?.enrollment?.status === 'active';
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans">
+      <Navbar />
+      <div className="flex-1 flex max-w-7xl mx-auto w-full">
+        <Sidebar portal="student" />
+        <main className="flex-1 p-6 sm:p-8 space-y-6 overflow-y-auto">
+          <Link
+            href={`/student/assessments/${id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Assessment
+          </Link>
+
+          {isLoading ? (
+            <div className="space-y-4" aria-label="Loading assessment questions">
+              {[0, 1, 2].map((item) => <div key={item} className="h-40 animate-pulse rounded-xl border border-slate-800 bg-slate-900/90" />)}
+            </div>
+          ) : data.error ? (
+            <Card className="border-amber-500/30 bg-slate-900/90 text-white">
+              <CardContent className="flex items-start gap-3 p-6">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                <div>
+                  <h1 className="font-bold">Assessment unavailable</h1>
+                  <p className="mt-1 text-sm text-slate-400">Assessment access could not be verified under current database policies.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : !assessment ? (
+            <Card className="border-amber-500/30 bg-slate-900/90 text-white">
+              <CardContent className="flex items-start gap-3 p-6">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                <div>
+                  <h1 className="font-bold">Assessment unavailable</h1>
+                  <p className="mt-1 text-sm text-slate-400">This assessment was not found, is outside its availability window, or is not visible.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : data.preview?.error && assessment.course_id && !data.preview.enrollment ? (
+            <Card className="border-amber-500/30 bg-slate-900/90 text-white">
+              <CardContent className="flex items-start gap-3 p-6">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                <div>
+                  <h1 className="font-bold">Enrollment unavailable</h1>
+                  <p className="mt-1 text-sm text-slate-400">Enrollment could not be verified under current database access policies.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : !hasCourseAccess ? (
+            <Card className="border-amber-500/30 bg-slate-900/90 text-white">
+              <CardContent className="flex items-start gap-3 p-6">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                <div>
+                  <h1 className="font-bold">Course enrollment required</h1>
+                  <p className="mt-1 text-sm text-slate-400">An active enrollment is required to view these questions.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : data.preview?.error ? (
+            <Card className="border-rose-500/30 bg-slate-900/90 text-white">
+              <CardContent className="flex items-start gap-3 p-6">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
+                <div>
+                  <h1 className="font-bold">Questions unavailable</h1>
+                  <p className="mt-1 text-sm text-slate-400">Question data could not be loaded or is not visible under current database access policies.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : !data.preview?.questions.length ? (
+            <Card className="border-slate-800 bg-slate-900/90 text-white">
+              <CardContent className="p-8 text-center">
+                <BookOpen className="mx-auto h-7 w-7 text-sky-400" />
+                <h1 className="mt-3 font-bold">No visible questions</h1>
+                <p className="mt-1 text-sm text-slate-400">No questions are assigned to this assessment or available under current policies.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <Badge variant={assessment.type === 'mock_test' ? 'warning' : 'danger'}>{assessment.type.replace('_', ' ')}</Badge>
+                  <h1 className="mt-2 text-xl font-black text-white">{assessment.title}</h1>
+                </div>
+                <p className="text-xs text-slate-400">Read-only preview. No attempt has been started.</p>
+              </div>
+
+              <div className="space-y-4">
+                {data.preview.questions.map((question, index) => (
+                  <Card key={question.id} className="border-slate-800 bg-slate-900/90 text-white">
+                    <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-xs font-bold text-sky-300">
+                          {index + 1}
+                        </span>
+                        <CardTitle className="text-sm leading-relaxed">{question.text}</CardTitle>
+                      </div>
+                      <Badge variant="outline">{question.difficulty}</Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-2 pl-14 text-xs">
+                      {question.options.length ? question.options.map((option, optionIndex) => (
+                        <div key={option.id} className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 text-slate-300">
+                          <span className="mr-2 text-slate-500">{String.fromCharCode(65 + optionIndex)}.</span>{option.text}
+                        </div>
+                      )) : (
+                        <p className="text-slate-500">No visible options are available for this question.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+      <Footer />
+    </div>
+  );
 }

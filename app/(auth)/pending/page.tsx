@@ -6,7 +6,7 @@ import { Clock, ShieldAlert, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 export default function PendingApprovalPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 p-4 font-sans">
       <Card className="w-full max-w-lg border-amber-500/30 bg-slate-900/90 text-white shadow-2xl text-center">
         <CardContent className="p-8 space-y-6">
           <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/40 animate-pulse">

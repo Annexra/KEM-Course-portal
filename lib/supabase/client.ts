@@ -46,22 +46,3 @@ export const MOCK_USERS: UserProfile[] = [
     departmentId: 'd1111111-1111-1111-1111-111111111111',
   },
 ];
-
-export function getInitialUser(): UserProfile {
-  if (typeof window === 'undefined') return MOCK_USERS[0];
-  const storedUser = localStorage.getItem('kem_current_user');
-  if (storedUser) {
-    try {
-      return JSON.parse(storedUser);
-    } catch {
-      return MOCK_USERS[0];
-    }
-  }
-  return MOCK_USERS[0];
-}
-
-export function saveCurrentUser(user: UserProfile) {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('kem_current_user', JSON.stringify(user));
-  }
-}
